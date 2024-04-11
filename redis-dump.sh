@@ -6,7 +6,7 @@ MONTH=`date +'%Y-%m'`
 DAY=`date +"%Y-%m-%d"`
 BDATE=`date +"%Y-%m-%dT%H:%M:%S"`
 REDIS_NAME=${REDIS_NAME:-redis}
-REDISDUMPBIN=${REDISDUMPBIN=-redis-utils.py}
+REDISDUMPBIN=${REDISDUMPBIN:-redis-utils.py}
 ARCHIVE_FILE=${REDIS_NAME}
 ARCHIVE=${BACKUPDIR}/hourly/${DAY}/${BDATE}-${ARCHIVE_FILE}
 ARCHIVE_DAY=${BACKUPDIR}/daily/${DAY}/${ARCHIVE_FILE}
