@@ -56,13 +56,13 @@ def dump_redis(cli: str, source_uri: str, name: str, dirdest: str):
     print(print_uri(suri.to_uri(), suri.password))
     dump_args = []
     dbname = "all"
+    my_env = os.environ.copy()
     if suri.db is not None:
         dump_args += ["-db", str(suri.db)]
         dbname = f"db-{suri.db}"
     if suri.user:
         dump_args += ["-user", suri.user]
     if suri.password:
-        my_env = os.environ.copy()
         my_env["REDISDUMPGO_AUTH"] = suri.password
     dump_args += ["-host", suri.host, "-port", str(suri.port)]
     archive = f"{dirdest}/{name}-{dbname}.txt"
