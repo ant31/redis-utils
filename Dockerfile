@@ -7,7 +7,7 @@ RUN rm -rf /root/.cargo
 
 FROM python:3-alpine
 RUN wget https://dl.minio.io/client/mc/release/linux-amd64/mc && chmod +x mc && mv mc /usr/local/bin
-COPY --from=ghcr.io/yannh/redis-dump-go:v0.8.1-alpine /redis-dump-go /usr/local/bin/
+COPY --from=img.conny.dev/connylabs/redis-dump-go:latest /redis-dump-go /usr/local/bin/
 
 COPY redis-utils.py /usr/local/bin
 COPY redis-dump.sh /usr/local/bin

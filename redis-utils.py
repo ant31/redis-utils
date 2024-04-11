@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
+import logging
 import subprocess
 from urllib.parse import urlparse
 from dataclasses import dataclass
 import argparse
 import subprocess, os
 
+logging.basicConfig()
+logger = logging.getLogger(__name__)
 
 @dataclass
 class RedisURI:
@@ -45,15 +48,15 @@ class RedisURI:
 
         return cls(db=db, host=host, port=port, user=user, password=password, uri=uri)
 
-def print_uri(uri, password):
+def hide_password(s, password):
     if password:
-        return uri.replace(password, "********")
+        return s.replace(password, "********")
     else:
-        return uri
+        return s
 
 def dump_redis(cli: str, source_uri: str, name: str, dirdest: str):
     suri = RedisURI.parse(source_uri)
-    print(print_uri(suri.to_uri(), suri.password))
+    logger.info(hide_password(suri.to_uri(), suri.password))
     dump_args = []
     dbname = "all"
     my_env = os.environ.copy()
@@ -67,20 +70,32 @@ def dump_redis(cli: str, source_uri: str, name: str, dirdest: str):
     dump_args += ["-host", suri.host, "-port", str(suri.port)]
     archive = f"{dirdest}/{name}-{dbname}.txt"
     cmdline = [cli] + dump_args
-    print(f"executing: {" ".join(cmdline)} > {archive}")
+    logger.info(hide_password(f"executing: {" ".join(cmdline)} > {archive}", suri.password))
     with open(archive, "wb") as f:
         subprocess.call(cmdline, stdout=f, env=my_env)
+    return archive
+
+def dump_redis_rdb(source_uri: str, name: str, dirdest: str):
+    suri = RedisURI.parse(source_uri)
+    logger.info(hide_password(suri.to_uri(), suri.password))
+    dbname = "all"
+    if suri.db is not None:
+        dbname = f"db-{suri.db}"
+    archive = f"{dirdest}/{name}-{dbname}.rdb"
+    cmdline = cmdline = ["redis-cli", "-u", source_uri, "--rdb", archive]
+    logger.info(hide_password(f"executing: {" ".join(cmdline)}", suri.password))
+    subprocess.call(cmdline)
     return archive
 
 
 def restore_redis(archive: str, dest_uri: str):
     duri = RedisURI.parse(dest_uri)
-    print(print_uri(duri.to_uri(), duri.password))
+    logger.info(hide_password(duri.to_uri(), duri.password))
     if duri.db:
-        print("clearing SELECT db from dump")
+        logger.info("clearing SELECT db from dump")
         subprocess.call(["sed", "-ri", f"5s/[0-9]+/{duri.db}/", archive])
     cmdline = ["redis-cli", "-u", dest_uri, "--pipe"]
-    print(f"executing: {print_uri(' '.join(cmdline), duri.password)} < {archive}")
+    logger.info(f"executing: {hide_password(' '.join(cmdline), duri.password)} < {archive}")
     with open(archive, "rb") as f:
         res = subprocess.call(cmdline, stdin=f)
     return res
@@ -97,15 +112,23 @@ def main():
     parser.add_argument('-n', '--name', default="redis-dump",
                         help='a name to create the dump file')
     parser.add_argument('--dumpcli', default="redis-dump-go", help="path to the redis-dump-go client if it's not in $PATH")
+    parser.add_argument('--dump-method', choices=['dump-go', 'rdb', 'both'], help='dump or restore a redis instance', default="dump-go")
+
+
     parser.add_argument('--dir', default=".", help="directory to dump the file")
-    group.add_argument('-a', '--archive', help="path to archive to restore")
+    group.add_argument('-a', '--source-archive', help="path to archive to restore")
     args = parser.parse_args()
-    path = args.archive
-    if args.source != None:
-        print("dumping source")
-        path = dump_redis(cli=args.dumpcli, source_uri=args.source, name=args.name, dirdest=args.dir)
-    if args.dest != None:
-        print("restoring dump")
+    path = args.source_archive
+    if args.source is not None:
+        logger.info("dumping source")
+        if args.dump_method in ["both", "dump-go"]:
+            path = dump_redis(cli=args.dumpcli, source_uri=args.source, name=args.name, dirdest=args.dir)
+            print(path)
+        if args.dump_method in ["both", "rdb"]:
+            path = dump_redis_rdb(source_uri=args.source, name=args.name, dirdest=args.dir)
+            print(path)
+    if args.dest is not None:
+        logger.info("restoring dump")
         path = restore_redis(archive=path, dest_uri=args.dest)
 
 
