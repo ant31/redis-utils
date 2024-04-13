@@ -93,7 +93,7 @@ def restore_redis(archive: str, dest_uri: str):
     logger.info(hide_password(duri.to_uri(), duri.password))
     if duri.db:
         logger.info("clearing SELECT db from dump")
-        subprocess.call(["sed", "-ri", f"5s/[0-9]+/{duri.db}/", archive])
+        subprocess.call(["sed", "-ri", "1,5d", archive])
     cmdline = ["redis-cli", "-u", dest_uri, "--pipe"]
     logger.info(f"executing: {hide_password(' '.join(cmdline), duri.password)} < {archive}")
     with open(archive, "rb") as f:
